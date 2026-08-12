@@ -36,3 +36,38 @@ class Project(Base):
     owner: Mapped["User"] = relationship(
         back_populates="projects",
     )
+
+    tasks: Mapped[list["Task"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    title: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        nullable=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="todo",
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id"),
+        nullable=False,
+    )
+
+    project: Mapped["Project"] = relationship(
+        back_populates="tasks",
+    )
