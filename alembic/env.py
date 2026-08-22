@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from app.core.config import DATABASE_URL
 from app.db.base import Base
-
+from app.db import models
 from alembic import context
 
 from app.db.models import User
