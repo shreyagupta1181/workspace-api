@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 from app.crud.users import (
     create_user,
     delete_user,
@@ -8,13 +9,13 @@ from app.crud.users import (
     get_users,
     update_user,
 )
-
 from app.db.database import get_db
 from app.schemas.users import (
     UserCreate,
     UserResponse,
     UserUpdate,
 )
+
 
 router = APIRouter(
     prefix="/users",
@@ -31,7 +32,13 @@ def create_user_endpoint(
     user: UserCreate,
     db: Session = Depends(get_db),
 ):
-    return create_user(db, user)
+    hashed_password = hash_password(user.password)
+
+    return create_user(
+        db,
+        user,
+        hashed_password,
+    )
 
 
 @router.get(
@@ -62,6 +69,7 @@ def read_user(
 
     return user
 
+
 @router.patch(
     "/{user_id}",
     response_model=UserResponse,
@@ -79,7 +87,18 @@ def update_user_endpoint(
             detail="User not found",
         )
 
-    return update_user(db, user, user_data)
+    hashed_password = None
+
+    if user_data.password is not None:
+        hashed_password = hash_password(user_data.password)
+
+    return update_user(
+        db,
+        user,
+        user_data,
+        hashed_password,
+    )
+
 
 @router.delete(
     "/{user_id}",
