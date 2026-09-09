@@ -9,12 +9,13 @@ from app.crud.projects import (
     update_project,
 )
 from app.db.database import get_db
+from app.db.models import User
+from app.dependencies.auth import get_current_user
 from app.schemas.projects import (
     ProjectCreate,
     ProjectResponse,
     ProjectUpdate,
 )
-
 
 router = APIRouter(
     prefix="/projects",
@@ -30,8 +31,13 @@ router = APIRouter(
 def create_project_endpoint(
     project_data: ProjectCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return create_project(db, project_data)
+    return create_project(
+        db,
+        project_data,
+        current_user.id,
+    )
 
 
 @router.get(
@@ -40,8 +46,12 @@ def create_project_endpoint(
 )
 def list_projects(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return get_projects(db)
+    return get_projects(
+        db,
+        current_user.id,
+    )
 
 
 @router.get(
@@ -51,12 +61,13 @@ def list_projects(
 def read_project(
     project_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     project = get_project(db, project_id)
 
-    if project is None:
+    if project is None or project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
 
@@ -71,16 +82,21 @@ def update_project_endpoint(
     project_id: int,
     project_data: ProjectUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     project = get_project(db, project_id)
 
-    if project is None:
+    if project is None or project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
 
-    return update_project(db, project, project_data)
+    return update_project(
+        db,
+        project,
+        project_data,
+    )
 
 
 @router.delete(
@@ -90,12 +106,13 @@ def update_project_endpoint(
 def delete_project_endpoint(
     project_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     project = get_project(db, project_id)
 
-    if project is None:
+    if project is None or project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
 

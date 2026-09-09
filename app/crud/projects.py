@@ -8,11 +8,12 @@ from app.schemas.projects import ProjectCreate, ProjectUpdate
 def create_project(
     db: Session,
     project_data: ProjectCreate,
+    owner_id: int,
 ) -> Project:
     project = Project(
         name=project_data.name,
         description=project_data.description,
-        owner_id=project_data.owner_id,
+        owner_id=owner_id,
     )
 
     db.add(project)
@@ -31,10 +32,16 @@ def get_project(
 
 def get_projects(
     db: Session,
+    owner_id: int,
     skip: int = 0,
     limit: int = 100,
 ) -> list[Project]:
-    statement = select(Project).offset(skip).limit(limit)
+    statement = (
+        select(Project)
+        .where(Project.owner_id == owner_id)
+        .offset(skip)
+        .limit(limit)
+    )
 
     return list(db.scalars(statement).all())
 

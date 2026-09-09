@@ -9,12 +9,13 @@ from app.crud.tasks import (
     update_task,
 )
 from app.db.database import get_db
+from app.db.models import User
+from app.dependencies.auth import get_current_user
 from app.schemas.tasks import (
     TaskCreate,
     TaskResponse,
     TaskUpdate,
 )
-
 
 router = APIRouter(
     prefix="/tasks",
@@ -30,8 +31,13 @@ router = APIRouter(
 def create_task_endpoint(
     task_data: TaskCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return create_task(db, task_data)
+    return create_task(
+        db,
+        task_data,
+        current_user.id,
+    )
 
 
 @router.get(
@@ -40,8 +46,12 @@ def create_task_endpoint(
 )
 def list_tasks(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return get_tasks(db)
+    return get_tasks(
+        db,
+        current_user.id,
+    )
 
 
 @router.get(
@@ -51,12 +61,13 @@ def list_tasks(
 def read_task(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     task = get_task(db, task_id)
 
-    if task is None:
+    if task is None or task.project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
         )
 
@@ -71,16 +82,21 @@ def update_task_endpoint(
     task_id: int,
     task_data: TaskUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     task = get_task(db, task_id)
 
-    if task is None:
+    if task is None or task.project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
         )
 
-    return update_task(db, task, task_data)
+    return update_task(
+        db,
+        task,
+        task_data,
+    )
 
 
 @router.delete(
@@ -90,12 +106,13 @@ def update_task_endpoint(
 def delete_task_endpoint(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     task = get_task(db, task_id)
 
-    if task is None:
+    if task is None or task.project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
         )
 
