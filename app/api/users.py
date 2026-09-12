@@ -10,12 +10,13 @@ from app.crud.users import (
     update_user,
 )
 from app.db.database import get_db
+from app.db.models import User
+from app.dependencies.auth import get_current_user
 from app.schemas.users import (
     UserCreate,
     UserResponse,
     UserUpdate,
 )
-
 
 router = APIRouter(
     prefix="/users",
@@ -42,13 +43,13 @@ def create_user_endpoint(
 
 
 @router.get(
-    "/",
-    response_model=list[UserResponse],
+    "/me",
+    response_model=UserResponse,
 )
-def list_users(
-    db: Session = Depends(get_db),
+def read_current_user(
+    current_user: User = Depends(get_current_user),
 ):
-    return get_users(db)
+    return current_user
 
 
 @router.get(
@@ -57,17 +58,15 @@ def list_users(
 )
 def read_user(
     user_id: int,
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    user = get_user(db, user_id)
-
-    if user is None:
+    if user_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
-    return user
+    return current_user
 
 
 @router.patch(
@@ -78,12 +77,11 @@ def update_user_endpoint(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    user = get_user(db, user_id)
-
-    if user is None:
+    if user_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
@@ -94,7 +92,7 @@ def update_user_endpoint(
 
     return update_user(
         db,
-        user,
+        current_user,
         user_data,
         hashed_password,
     )
@@ -107,13 +105,12 @@ def update_user_endpoint(
 def delete_user_endpoint(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    user = get_user(db, user_id)
-
-    if user is None:
+    if user_id != current_user.id:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
-    delete_user(db, user)
+    delete_user(db, current_user)
