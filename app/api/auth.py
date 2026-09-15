@@ -1,6 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.rate_limit import check_rate_limit
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
 from app.crud.users import (
     create_user,
     get_user_by_email,
@@ -9,20 +17,11 @@ from app.db.database import get_db
 from app.db.models import User
 from app.dependencies.auth import get_current_user
 from app.schemas.users import (
+    RefreshTokenRequest,
     UserCreate,
     UserLogin,
     UserResponse,
-    RefreshTokenRequest,
 )
-
-from app.core.security import (
-    create_access_token,
-    create_refresh_token,
-    decode_token,
-    hash_password,
-    verify_password,
-)
-
 
 router = APIRouter(
     prefix="/auth",
@@ -37,8 +36,16 @@ router = APIRouter(
 )
 def signup(
     user: UserCreate,
+    request: Request,
     db: Session = Depends(get_db),
 ):
+    check_rate_limit(
+        request=request,
+        action="signup",
+        limit=3,
+        window=60,
+    )
+
     existing_user = get_user_by_email(
         db,
         user.email,
@@ -62,8 +69,16 @@ def signup(
 @router.post("/login")
 def login(
     user: UserLogin,
+    request: Request,
     db: Session = Depends(get_db),
 ):
+    check_rate_limit(
+        request=request,
+        action="login",
+        limit=5,
+        window=60,
+    )
+
     db_user = get_user_by_email(
         db,
         user.email,
@@ -98,6 +113,7 @@ def login(
         "token_type": "bearer",
     }
 
+
 @router.get(
     "/me",
     response_model=UserResponse,
@@ -107,13 +123,14 @@ def get_me(
 ):
     return current_user
 
+
 @router.post("/refresh")
 def refresh_access_token(
     data: RefreshTokenRequest,
     db: Session = Depends(get_db),
 ):
     try:
-        payload = decode_token(data.refresh_token)   
+        payload = decode_token(data.refresh_token)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
