@@ -1,6 +1,9 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.redis import redis_client
 from app.crud.projects import (
     create_project,
     delete_project,
@@ -33,11 +36,17 @@ def create_project_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return create_project(
+    project = create_project(
         db,
         project_data,
         current_user.id,
     )
+
+    redis_client.delete(
+        f"projects:user:{current_user.id}"
+    )
+
+    return project
 
 
 @router.get(
@@ -48,10 +57,35 @@ def list_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_projects(
+    cache_key = f"projects:user:{current_user.id}"
+
+    cached_projects = redis_client.get(cache_key)
+
+    if cached_projects:
+        return json.loads(cached_projects)
+
+    projects = get_projects(
         db,
         current_user.id,
     )
+
+    projects_data = [
+        {
+            "id": project.id,
+            "name": project.name,
+            "description": project.description,
+            "owner_id": project.owner_id,
+        }
+        for project in projects
+    ]
+
+    redis_client.set(
+        cache_key,
+        json.dumps(projects_data),
+        ex=60,
+    )
+
+    return projects
 
 
 @router.get(
@@ -92,11 +126,17 @@ def update_project_endpoint(
             detail="Project not found",
         )
 
-    return update_project(
+    updated_project = update_project(
         db,
         project,
         project_data,
     )
+
+    redis_client.delete(
+        f"projects:user:{current_user.id}"
+    )
+
+    return updated_project
 
 
 @router.delete(
@@ -117,3 +157,9 @@ def delete_project_endpoint(
         )
 
     delete_project(db, project)
+
+    redis_client.delete(
+        f"projects:user:{current_user.id}"
+    )
+
+    return None
