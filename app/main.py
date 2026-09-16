@@ -19,6 +19,10 @@ app.add_middleware(
     secret_key=os.getenv("SESSION_SECRET_KEY"),
 )
 
+@app.get("/")
+def root():
+    return {"message": "Workspace API is running"}
+
 app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(tasks_router)
