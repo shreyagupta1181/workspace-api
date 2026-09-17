@@ -10,6 +10,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql://workspace_user:workspace_password@localhost:5432/workspace_db
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
