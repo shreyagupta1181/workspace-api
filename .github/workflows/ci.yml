@@ -12,6 +12,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://workspace_user:workspace_password@localhost:5432/workspace_db
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - name: Checkout repository
